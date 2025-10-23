@@ -98,7 +98,7 @@ python src/main.py
 
 ## 📬 Контакты  
 Если возникнут вопросы – свяжитесь:  
-`ivan.tutynnik@example.com`  
+`tyutyunnik.ivan@yandex.ru`  
 
 ---
 
