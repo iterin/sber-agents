@@ -15,6 +15,10 @@ make run
 - Убедитесь, что установлен `aiohttp-socks` (ставится автоматически из зависимостей)
 - Укажите `TELEGRAM_PROXY_URL` (HTTP/HTTPS или socks5) и перезапустите
 
+## LLM (Итерация 2)
+- Для реального ответа модели укажите `OPENAI_API_KEY` и (опционально) `OPENAI_MODEL`.
+- Без ключа бот отвечает в mock-режиме: `[mock] <ваш текст>`.
+
 ## Структура
 См. `docs/tasklist.md` и `docs/workflow.md`.
 
