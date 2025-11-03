@@ -1,6 +1,8 @@
-from typing import Optional
+from typing import Optional, List, Dict
 import os
 from src.config import OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL, DEBUG_LLM, env_bool
+from collections import deque
+from src.memory import ChatMemory
 
 SYSTEM_PROMPT_PATH = "prompts/system_prompt.txt"
 
@@ -13,7 +15,17 @@ def load_system_prompt() -> str:
         return "You are a helpful assistant. Keep responses concise."
 
 
-def generate_reply(user_text: str) -> str:
+def build_messages_with_context(user_text: str, history: Optional[ChatMemory]) -> List[Dict[str, str]]:
+    system_prompt = load_system_prompt()
+    messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
+    if history:
+        for role, content in history:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": user_text})
+    return messages
+
+
+def generate_reply(user_text: str, history: Optional[ChatMemory] = None) -> str:
     if not user_text:
         return ""
 
@@ -39,12 +51,10 @@ def generate_reply(user_text: str) -> str:
             masked = OPENAI_API_KEY[:4] + "..." if OPENAI_API_KEY else ""
             print(f"[LLM DEBUG] init client base_url={OPENAI_BASE_URL or 'default'} model={OPENAI_MODEL} key={masked}")
         client = OpenAI(**client_kwargs)
+        messages = build_messages_with_context(user_text, history)
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_text},
-            ],
+            messages=messages,
             temperature=0.2,
         )
         if env_bool(DEBUG_LLM or ""):
