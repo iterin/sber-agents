@@ -30,6 +30,10 @@ OPENAI_BASE_URL = _OPENAI_BASE_URL or _OPENROUTER_BASE_URL
 # If OpenRouter key detected and base_url is not set, default to OpenRouter endpoint
 if not OPENAI_BASE_URL and OPENAI_API_KEY.startswith("sk-or-"):
     OPENAI_BASE_URL = "https://openrouter.ai/api/v1"
+
+# LLM timeouts/retries
+LLM_TIMEOUT_S = float(os.getenv("LLM_TIMEOUT_S", "20"))
+LLM_RETRY_COUNT = int(os.getenv("LLM_RETRY_COUNT", "1"))
 DEBUG_LLM = os.getenv("DEBUG_LLM", "").strip()
 
 def env_bool(value: str) -> bool:

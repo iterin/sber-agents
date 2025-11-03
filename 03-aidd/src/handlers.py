@@ -19,14 +19,18 @@ async def handle_reset(message: types.Message) -> None:
 
 @router.message()
 async def handle_text(message: types.Message) -> None:
-    if not message.text:
-        return
-    history = get_history(message.chat.id)
-    reply = generate_reply(message.text, history)
-    # обновляем историю
-    history.append(("user", message.text))
-    history.append(("assistant", reply))
-    if reply:
-        await message.answer(reply)
+    try:
+        if not message.text:
+            return
+        history = get_history(message.chat.id)
+        reply = generate_reply(message.text, history)
+        # обновляем историю
+        history.append(("user", message.text))
+        history.append(("assistant", reply))
+        if reply:
+            await message.answer(reply)
+    except Exception as e:
+        print(f"[HANDLER ERROR] {type(e).__name__}: {e}")
+        await message.answer("Извините, сервис временно недоступен. Попробуйте позже.")
 
 

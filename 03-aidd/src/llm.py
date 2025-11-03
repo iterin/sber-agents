@@ -1,6 +1,14 @@
 from typing import Optional, List, Dict
 import os
-from src.config import OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL, DEBUG_LLM, env_bool
+from src.config import (
+    OPENAI_API_KEY,
+    OPENAI_MODEL,
+    OPENAI_BASE_URL,
+    DEBUG_LLM,
+    env_bool,
+    LLM_TIMEOUT_S,
+    LLM_RETRY_COUNT,
+)
 from collections import deque
 from src.memory import ChatMemory
 
@@ -44,12 +52,14 @@ def generate_reply(user_text: str, history: Optional[ChatMemory] = None) -> str:
 
     system_prompt = load_system_prompt()
     try:
-        client_kwargs = {"api_key": OPENAI_API_KEY}
+        client_kwargs = {"api_key": OPENAI_API_KEY, "timeout": LLM_TIMEOUT_S, "max_retries": LLM_RETRY_COUNT}
         if OPENAI_BASE_URL:
             client_kwargs["base_url"] = OPENAI_BASE_URL
         if env_bool(DEBUG_LLM or ""):
             masked = OPENAI_API_KEY[:4] + "..." if OPENAI_API_KEY else ""
-            print(f"[LLM DEBUG] init client base_url={OPENAI_BASE_URL or 'default'} model={OPENAI_MODEL} key={masked}")
+            print(
+                f"[LLM DEBUG] init client base_url={OPENAI_BASE_URL or 'default'} model={OPENAI_MODEL} key={masked} timeout={LLM_TIMEOUT_S}s retries={LLM_RETRY_COUNT}"
+            )
         client = OpenAI(**client_kwargs)
         messages = build_messages_with_context(user_text, history)
         resp = client.chat.completions.create(
@@ -63,6 +73,9 @@ def generate_reply(user_text: str, history: Optional[ChatMemory] = None) -> str:
     except Exception as e:
         # Minimal diagnostic to console, user still gets mock reply to avoid crashes
         print(f"[LLM ERROR] {type(e).__name__}: {e}")
+        # If key present but failed, return polite fallback; if no key, mock already returned earlier
+        if OPENAI_API_KEY:
+            return "Извините, сервис временно недоступен. Попробуйте позже."
         return f"[mock] {user_text}"
 
 
