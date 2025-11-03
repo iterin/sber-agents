@@ -11,6 +11,11 @@ async def main() -> None:
     bot = Bot(token=TELEGRAM_BOT_TOKEN, session=session)
     dp = Dispatcher()
     dp.include_router(handlers_router)
+    # Сбросить вебхук и отложенные апдейты, чтобы избежать конфликта getUpdates
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+    except Exception:
+        pass
     await dp.start_polling(bot)
 
 
