@@ -28,7 +28,8 @@
 - **LLM модели:** `gpt-4o-mini` (через OpenRouter) для ответов бота; `gpt-4.1` семейство в Cursor для генерации кода и документации.
 
 ## Скриншот работы
-![Демонстрация Telegram-бота](03-aidd/screenshots/bot-demo.png)
+<img width="976" height="809" alt="image" src="https://github.com/user-attachments/assets/bf00021f-0b2d-4052-8a22-de338f9b485c" />
+
 
 ## Процесс разработки: основные вызовы и решения
 - Настроена единая конфигурация через `.env` и Makefile, чтобы запуск в разных средах не требовал правок кода.
