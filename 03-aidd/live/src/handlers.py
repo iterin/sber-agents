@@ -1,7 +1,12 @@
+import asyncio
 import logging
+from contextlib import suppress
+
 from aiogram import Router
+from aiogram.enums import ChatAction
 from aiogram.filters import Command
 from aiogram.types import Message
+
 from llm import get_response
 from config import config
 
@@ -14,15 +19,29 @@ chat_conversations: dict[int, list[dict]] = {}
 # Максимальная длина сообщения пользователя
 MAX_MESSAGE_LENGTH = 4000
 
+
+def _initialize_history(chat_id: int) -> None:
+    chat_conversations[chat_id] = [
+        {"role": "system", "content": config.SYSTEM_PROMPT}
+    ]
+
+
+async def _typing_indicator(bot, chat_id: int) -> None:
+    try:
+        while True:
+            await bot.send_chat_action(chat_id, ChatAction.TYPING)
+            await asyncio.sleep(4)
+    except asyncio.CancelledError:
+        pass
+
+
 @router.message(Command("start"))
 async def cmd_start(message: Message):
     logger.info(f"User {message.chat.id} started the bot")
-    
+
     # Инициализируем историю с системным промптом
-    chat_conversations[message.chat.id] = [
-        {"role": "system", "content": config.SYSTEM_PROMPT}
-    ]
-    
+    _initialize_history(message.chat.id)
+
     await message.answer(
         "Привет! Я LLM-ассистент.\n\n"
         "Я могу:\n"
@@ -32,6 +51,28 @@ async def cmd_start(message: Message):
         "• Поддерживать диалог с учетом контекста\n\n"
         "Используйте /start для начала нового диалога."
     )
+
+
+@router.message(Command("help"))
+async def cmd_help(message: Message):
+    logger.info(f"User {message.chat.id} requested help")
+    await message.answer(
+        "Доступные команды:\n"
+        "• /start — начать новый диалог и получить приветствие\n"
+        "• /help — показать эту подсказку\n"
+        "• /reset — очистить текущий контекст диалога\n\n"
+        "Просто отправьте сообщение, и я отвечу с учетом контекста беседы."
+    )
+
+
+@router.message(Command("reset"))
+async def cmd_reset(message: Message):
+    logger.info(f"User {message.chat.id} reset the conversation")
+    _initialize_history(message.chat.id)
+    await message.answer(
+        "Контекст диалога очищен. Можно продолжать разговор."
+    )
+
 
 @router.message()
 async def handle_message(message: Message):
@@ -52,9 +93,7 @@ async def handle_message(message: Message):
     
     # Инициализируем историю если её нет
     if message.chat.id not in chat_conversations:
-        chat_conversations[message.chat.id] = [
-            {"role": "system", "content": config.SYSTEM_PROMPT}
-        ]
+        _initialize_history(message.chat.id)
     
     # Добавляем сообщение пользователя в историю
     chat_conversations[message.chat.id].append(
@@ -63,8 +102,16 @@ async def handle_message(message: Message):
     
     try:
         # Получаем ответ LLM со всей историей
-        response = await get_response(chat_conversations[message.chat.id])
-        
+        typing_task = asyncio.create_task(
+            _typing_indicator(message.bot, message.chat.id)
+        )
+        try:
+            response = await get_response(chat_conversations[message.chat.id])
+        finally:
+            typing_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await typing_task
+
         # Добавляем ответ LLM в историю
         chat_conversations[message.chat.id].append(
             {"role": "assistant", "content": response}
