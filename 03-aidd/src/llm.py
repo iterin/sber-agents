@@ -1,5 +1,7 @@
 from typing import Optional, List, Dict
 import os
+import sys
+from pathlib import Path
 from src.config import (
     OPENAI_API_KEY,
     OPENAI_MODEL,
@@ -12,7 +14,20 @@ from src.config import (
 from collections import deque
 from src.memory import ChatMemory
 
-SYSTEM_PROMPT_PATH = "prompts/system_prompt.txt"
+def resolve_resource_path(relative_path: str) -> Path:
+    """
+    Resolve path to bundled resources, compatible with PyInstaller (sys._MEIPASS) and dev mode.
+    """
+    base_path: Path
+    try:
+        base_path = Path(getattr(sys, "_MEIPASS"))  # type: ignore[attr-defined]
+    except Exception:
+        # project root = src/..
+        base_path = Path(__file__).resolve().parents[1]
+    return base_path / relative_path
+
+
+SYSTEM_PROMPT_PATH = resolve_resource_path("prompts/system_prompt.txt")
 
 
 def load_system_prompt() -> str:
