@@ -18,7 +18,7 @@ _llm_query_transform = None
 _llm = None
 
 def initialize_retriever():
-    """Инициализация retriever из векторного хранилища"""
+    """Инициализация стандартного retriever из векторного хранилища"""
     global retriever
     if vector_store is None:
         logger.error("Cannot initialize retriever: vector_store is None")
@@ -123,7 +123,8 @@ def _get_llm_query_transform():
     if _llm_query_transform is None:
         _llm_query_transform = ChatOpenAI(
             model=config.MODEL_QUERY_TRANSFORM,
-            temperature=0.4
+            # Небольшая температура для более точного и стабильного запроса к retriever
+            temperature=0.2
         )
         logger.info(f"Query transform LLM initialized: {config.MODEL_QUERY_TRANSFORM}")
     return _llm_query_transform
@@ -134,7 +135,8 @@ def _get_llm():
     if _llm is None:
         _llm = ChatOpenAI(
             model=config.MODEL,
-            temperature=0.9
+            # Снижаем температуру, чтобы уменьшить галлюцинации и повысить faithfulness/correctness
+            temperature=0.2
         )
         logger.info(f"Main LLM initialized: {config.MODEL}")
     return _llm
@@ -186,8 +188,23 @@ async def rag_answer(messages):
         logger.error("Vector store or retriever not initialized")
         raise ValueError("Векторное хранилище не инициализировано. Запустите индексацию.")
     
+    # Логируем transformed query для дебага
+    transformation_chain = get_retrieval_query_transformation_chain()
+    transformed_query = await transformation_chain.ainvoke({"messages": messages})
+    logger.info(f"Transformed search query: '{transformed_query}'")
+    
+    # Теперь цепочка RAG с использованием transformed query (но сохраняем messages для generation)
     rag_chain = get_rag_chain()
     result = await rag_chain.ainvoke({"messages": messages})
+    
+    # Логирование retrieved
+    logger.info(f"Retrieved {len(result['documents'])} documents for the query")
+    for i, doc in enumerate(result['documents']):
+        source = doc.metadata.get('source', 'Unknown')
+        page = doc.metadata.get('page', 'N/A')
+        preview = doc.page_content[:100] + '...' if len(doc.page_content) > 100 else doc.page_content
+        logger.info(f"Doc {i+1}: source={source} (стр. {page}), preview='{preview}'")
+    
     return result
 
 def get_vector_store_stats():

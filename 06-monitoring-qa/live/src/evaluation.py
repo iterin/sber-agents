@@ -9,6 +9,8 @@ from ragas.metrics import (
     AnswerRelevancy,
     AnswerCorrectness,
     AnswerSimilarity,
+    ContextRecall,
+    ContextPrecision,
 )
 from ragas.metrics.base import MetricWithLLM, MetricWithEmbeddings
 from ragas.llms import LangchainLLMWrapper
@@ -36,8 +38,13 @@ def init_ragas_metrics():
     
     logger.info("Initializing RAGAS metrics...")
     
-    # Настройка LLM и embeddings для RAGAS (фиксированные модели для единообразной оценки)
-    langchain_llm = ChatOpenAI(model=config.RAGAS_LLM_MODEL, temperature=0)
+    # Настройка LLM и embeddings для RAGAS (используем free модель из config)
+    langchain_llm = ChatOpenAI(
+        model=config.MODEL,
+        temperature=0,
+        openai_api_base=config.OPENAI_BASE_URL if config.OPENAI_BASE_URL else None,
+        openai_api_key=config.OPENAI_API_KEY,
+    )
     langchain_embeddings = OpenAIEmbeddings(model=config.RAGAS_EMBEDDING_MODEL)
     
     # Создаем метрики
@@ -46,6 +53,8 @@ def init_ragas_metrics():
         AnswerRelevancy(strictness=1),
         AnswerCorrectness(),
         AnswerSimilarity(),
+        ContextRecall(),
+        ContextPrecision(),
     ]
     
     # Инициализируем метрики

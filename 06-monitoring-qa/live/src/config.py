@@ -10,12 +10,19 @@ class Config:
     OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
     MODEL = os.getenv("MODEL")
     MODEL_QUERY_TRANSFORM = os.getenv("MODEL_QUERY_TRANSFORM", "gpt-4o")
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
+    # Модель эмбеддингов по умолчанию (используется только если отключены локальные эмбеддинги)
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "multilingual-e5-base")
+    # Явно включаем локальные эмбеддинги (модель из папки models/multilingual-e5-base),
+    # независимо от .env, так как в этом проекте приоритет у локальных моделей.
+    USE_LOCAL_EMBEDDING = True
     DATA_DIR = os.getenv("DATA_DIR", "data")
     PROMPTS_DIR = os.getenv("PROMPTS_DIR", "prompts")
     CONVERSATION_SYSTEM_PROMPT_FILE = os.getenv("CONVERSATION_SYSTEM_PROMPT_FILE", "conversation_system.txt")
     QUERY_TRANSFORM_PROMPT_FILE = os.getenv("QUERY_TRANSFORM_PROMPT_FILE", "query_transform.txt")
-    RETRIEVER_K = int(os.getenv("RETRIEVER_K", "3"))
+    # Количество документов, извлекаемых retriever'ом за один запрос.
+    # Увеличено по умолчанию до 30, чтобы уменьшить риск пропустить релевантные чанки
+    # в корпусе из ~800 документов (PDF + JSON).
+    RETRIEVER_K = int(os.getenv("RETRIEVER_K", "30"))
     SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT")
     
     # Отображение источников

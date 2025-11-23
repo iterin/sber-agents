@@ -5,6 +5,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import InMemoryVectorStore
 from config import config
+from langchain_core.documents import Document
+import json
+from langchain_huggingface import HuggingFaceEmbeddings  # Для локальной модели
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +48,32 @@ def load_json_documents(json_file_path: str) -> list:
         return []
     
     try:
-        loader = JSONLoader(
-            file_path=str(json_path),
-            jq_schema='.[].full_text',
-            text_content=False
-        )
-        documents = loader.load()
-        logger.info(f"Loaded {len(documents)} Q&A pairs from JSON")
+        # Загружаем весь JSON
+        with open(str(json_path), 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        documents = []
+        for item in data:
+            question = item.get('question', '')
+            answer = item.get('answer', '')
+            
+            if question:
+                # Чанк для вопроса
+                q_doc = Document(
+                    page_content=f"Вопрос: {question}",
+                    metadata={'source': json_file_path, 'type': 'question'}
+                )
+                documents.append(q_doc)
+            
+            if answer:
+                # Чанк для ответа
+                a_doc = Document(
+                    page_content=f"Ответ: {answer}",
+                    metadata={'source': json_file_path, 'type': 'answer'}
+                )
+                documents.append(a_doc)
+        
+        logger.info(f"Loaded {len(documents)} Q&A chunks from JSON (questions + answers)")
         return documents
     except Exception as e:
         logger.error(f"Error loading JSON: {e}")
@@ -59,9 +81,20 @@ def load_json_documents(json_file_path: str) -> list:
 
 def create_vector_store(chunks: list):
     """Создание векторного хранилища"""
-    embeddings = OpenAIEmbeddings(
-        model=config.EMBEDDING_MODEL
-    )
+    if config.USE_LOCAL_EMBEDDING:
+        embeddings = HuggingFaceEmbeddings(
+            model_name="models/multilingual-e5-base",
+            model_kwargs={'device': 'cpu'},  # CPU для простоты, можно 'cuda' если GPU
+        )
+        logger.info("Using local multilingual embedding model")
+    else:
+        embeddings = OpenAIEmbeddings(
+            model=config.EMBEDDING_MODEL,
+            openai_api_base=config.OPENAI_BASE_URL if config.OPENAI_BASE_URL else None,
+            openai_api_key=config.OPENAI_API_KEY,
+        )
+        logger.info(f"Using OpenAI embedding model: {config.EMBEDDING_MODEL}")
+    
     vector_store = InMemoryVectorStore.from_documents(
         documents=chunks,
         embedding=embeddings

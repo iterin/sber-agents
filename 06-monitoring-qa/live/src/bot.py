@@ -2,6 +2,7 @@ import asyncio
 import logging
 from pathlib import Path
 from aiogram import Bot, Dispatcher
+from aiogram.exceptions import TelegramConflictError
 from handlers import router
 from config import config
 import indexer
@@ -38,6 +39,7 @@ async def main():
         logger.warning("Indexing completed with no documents - bot will run but cannot answer questions")
     
     bot = Bot(token=config.TELEGRAM_TOKEN)
+    await bot.delete_webhook(drop_pending_updates=True)
     dp = Dispatcher()
     dp.include_router(router)
     
@@ -46,6 +48,11 @@ async def main():
         await dp.start_polling(bot)
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
+    except TelegramConflictError:
+        logger.error(
+            "Detected another polling instance for this bot token. "
+            "Stop other running instances before restarting."
+        )
     except Exception as e:
         logger.error(f"Bot stopped with error: {e}", exc_info=True)
     finally:
